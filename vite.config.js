@@ -1,13 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
-import tailwindcss from '@tailwindcss/vite'
+import tailwindcss from '@tailwindcss/vite';
+
 export default defineConfig({
   plugins: [
-    react()
-    ,
+    react(),
     tailwindcss(),
-    ,
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
@@ -15,8 +14,9 @@ export default defineConfig({
         name: 'Blog Application PWA',
         short_name: 'BlogApp',
         theme_color: '#2563eb',
-        icons: [{ src: '/pwa192192.png', sizes: '512x512', type: 'image/png' },
-        { src: '/pwa192192.png', sizes: '192x192', type: 'image/png' }
+        icons: [
+          { src: '/pwa512512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/pwa192192.png', sizes: '192x192', type: 'image/png' }
         ]
       }
     })
