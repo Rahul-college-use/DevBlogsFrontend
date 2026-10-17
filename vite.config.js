@@ -11,11 +11,13 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        start_url:'/',
+        start_url: '/',
         name: 'Blog Application PWA',
         short_name: 'BlogApp',
         theme_color: '#2563eb',
-        icons: [{ src: '/pwa192192.png', sizes: '512x512', type: 'image/png' }]
+        icons: [{ src: '/pwa192192.png', sizes: '512x512', type: 'image/png' },
+        { src: '/pwa192192.png', sizes: '192x192', type: 'image/png' }
+        ]
       }
     })
   ]
