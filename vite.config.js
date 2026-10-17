@@ -2,8 +2,6 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import tailwindcss from '@tailwindcss/vite'
-
-
 export default defineConfig({
   plugins: [
     react()
@@ -13,6 +11,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
+        start_url:'/',
         name: 'Blog Application PWA',
         short_name: 'BlogApp',
         theme_color: '#2563eb',
