@@ -9,6 +9,7 @@ import Categories from './pages/Categories';
 import CommunityPosts from './pages/CommunityPosts';
 
 export default function App() {
+  
     return (
         <Router>
             {/* Toast Notifications */}
