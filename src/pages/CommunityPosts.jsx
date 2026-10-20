@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
-
+import {ShimmerDemo} from '../components/Shimmer'
 export default function CommunityPosts() {
     const [posts, setPosts] = useState([]);
     const [selectedPost, setSelectedPost] = useState(null);
@@ -11,6 +11,7 @@ export default function CommunityPosts() {
     const [newComment, setNewComment] = useState('');
     const [editCommentId, setEditCommentId] = useState(null);
     const [currentUserId, setCurrentUserId] = useState(null);
+    const [pageLoading,setPageLoading]=useState(false)
 
     const navigate = useNavigate();
     const token = localStorage.getItem('token');
@@ -36,12 +37,15 @@ export default function CommunityPosts() {
     }, [token]);
 
     const fetchCommunityPosts = async () => {
+        setPageLoading(true)
         try {
             if (!token) { navigate('/login'); return; }
             const res = await axios.get('https://dev-blogs-mu.vercel.app/blog/get-all', { headers });
             setPosts(res.data.findAllPost || []);
         } catch (err) {
             toast.error("Failed to load community posts");
+        }finally{
+            setPageLoading(false)
         }
     };
 
@@ -50,11 +54,15 @@ export default function CommunityPosts() {
     }, []);
 
     const fetchComments = async (blogId) => {
+        setPageLoading(true)
         try {
+
             const res = await axios.get(`https://dev-blogs-mu.vercel.app/comment/${blogId}`, { headers });
             setComments(res.data.findBlog || []);
         } catch (err) {
             setComments([]);
+        }finally{
+            setPageLoading(false)
         }
     };
 
@@ -120,9 +128,9 @@ export default function CommunityPosts() {
                 <h1 className="text-3xl font-extrabold text-white">🌍 Community Blog Posts</h1>
                 <p className="text-gray-300 text-sm">Explore insights and stories shared by other users in the network.</p>
 
-                {posts.length === 0 ? (
+                {pageLoading && posts.length === 0 ? (
                     <div className="bg-white/10 backdrop-blur-md border border-white/20 p-6 rounded-2xl text-center text-gray-300">
-                        No community posts found.
+                      <ShimmerDemo message = "Loading posts" />
                     </div>
                 ) : (
                     <div className="space-y-6">
@@ -212,8 +220,9 @@ export default function CommunityPosts() {
                             </form>
 
                             <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
-                                {comments.length === 0 ? (
-                                    <p className="text-gray-400 text-xs">No comments yet. Be the first one to comment!</p>
+                                {pageLoading && comments.length === 0 ? (
+                                    <ShimmerDemo message='Loading comment'/>
+                                    // <p className="text-gray-400 text-xs">No comments yet. Be the first one to comment!</p>
                                 ) : (
                                     comments.map((comm, idx) => {
                                         // Check if the comment belongs to the logged-in user

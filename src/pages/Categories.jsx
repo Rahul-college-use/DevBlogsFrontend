@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
+import { LoadingSpinner } from '../components/Loader';
+import { ShimmerDemo } from '../components/Shimmer';
 
 export default function Categories() {
     const [categories, setCategories] = useState([]);
     const [catForm, setCatForm] = useState({ title: '', image: '' });
     const [editCatId, setEditCatId] = useState(null);
+    const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
     const token = localStorage.getItem('token');
@@ -18,12 +21,15 @@ export default function Categories() {
     };
 
     const fetchCategories = async () => {
+        setLoading(true);
         try {
             if (!token) { navigate('/login'); return; }
             const res = await axios.get('https://dev-blogs-mu.vercel.app/category/', { headers });
             setCategories(res.data.findOwnPost || res.data.findAllCategory || []);
         } catch (err) {
             toast.error("Failed to load categories");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -33,6 +39,7 @@ export default function Categories() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
         try {
             if (editCatId) {
                 const res = await axios.put(`https://dev-blogs-mu.vercel.app/category/update/${editCatId}`, catForm, { headers });
@@ -46,6 +53,7 @@ export default function Categories() {
             fetchCategories();
         } catch (err) {
             toast.error(err.response?.data?.message || "Operation failed");
+            setLoading(false);
         }
     };
 
@@ -77,24 +85,27 @@ export default function Categories() {
                     <div className="bg-white/10 backdrop-blur-md border border-white/20 p-6 rounded-2xl shadow-xl h-fit">
                         <h3 className="text-lg font-bold text-white mb-4">{editCatId ? "Edit Category" : "Add New Category"}</h3>
                         <form onSubmit={handleSubmit}>
-                            <input 
-                                type="text" 
-                                placeholder="Category Title" 
-                                value={catForm.title} 
-                                onChange={e => setCatForm({...catForm, title: e.target.value})} 
-                                className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-400" 
-                                required 
+                            <input
+                                type="text"
+                                placeholder="Category Title"
+                                value={catForm.title}
+                                onChange={e => setCatForm({ ...catForm, title: e.target.value })}
+                                className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-400"
+                                required
                             />
-                            <input 
-                                type="text" 
-                                placeholder="Image URL (Optional)" 
-                                value={catForm.image} 
-                                onChange={e => setCatForm({...catForm, image: e.target.value})} 
-                                className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-400" 
+                            <input
+                                type="text"
+                                placeholder="Image URL (Optional)"
+                                value={catForm.image}
+                                onChange={e => setCatForm({ ...catForm, image: e.target.value })}
+                                className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-400"
                             />
                             <div className="flex gap-2">
-                                <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-xl text-sm font-semibold transition">
-                                    {editCatId ? "Update" : "Add Category"}
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 shadow-md flex items-center justify-center disabled:bg-blue-400 disabled:cursor-not-allowed">
+                                    {loading ? <LoadingSpinner /> : (editCatId ? "Update" : "Add Category")}
                                 </button>
                                 {editCatId && (
                                     <button type="button" onClick={() => { setEditCatId(null); setCatForm({ title: '', image: '' }); }} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-xl text-sm">Cancel</button>
@@ -106,8 +117,9 @@ export default function Categories() {
                     {/* Categories Grid List */}
                     <div className="lg:col-span-2 bg-white/10 backdrop-blur-md border border-white/20 p-6 rounded-2xl shadow-xl">
                         <h3 className="text-xl font-bold text-white mb-6">All Categories</h3>
-                        {categories.length === 0 ? (
-                            <p className="text-gray-300 text-sm">No categories available.</p>
+                        {loading && categories.length === 0 ? (
+                            <ShimmerDemo/>
+                            // <p className="text-gray-300 text-sm">No categories available.</p>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {categories.map(cat => (

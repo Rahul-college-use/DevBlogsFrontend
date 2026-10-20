@@ -1,20 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
+import { LoadingSpinner } from '../components/Loader';
+import { ShimmerDemo } from '../components/Shimmer';
 
 export default function Dashboard() {
     const [blogs, setBlogs] = useState([]);
     const [categories, setCategories] = useState([]);
 
-    // Blog Form State
-    const [blogForm, setBlogForm] = useState({ title: '', image: '', categoryId: '', categoryName: '', descripation: '', status: 'post' });
+    // Blog Form State (Fixed typo: descripation -> description)
+    const [blogForm, setBlogForm] = useState({ title: '', image: '', categoryId: '', categoryName: '', description: '', status: 'post' });
     const [editBlogId, setEditBlogId] = useState(null);
 
     // Category Form State
     const [catForm, setCatForm] = useState({ title: '', image: '' });
     const [editCatId, setEditCatId] = useState(null);
+
+    // Separate loading states for better UX
+    const [pageLoading, setPageLoading] = useState(false);
+    const [catLoading, setCatLoading] = useState(false);
+    const [blogLoading, setBlogLoading] = useState(false);
 
     const navigate = useNavigate();
     const token = localStorage.getItem('token');
@@ -24,34 +31,39 @@ export default function Dashboard() {
         'Authorization': `Bearer ${token}`
     };
 
-    const fetchAllData = async () => {
+    const fetchAllData = useCallback(async () => {
         try {
             if (!token) {
                 navigate('/login');
                 return;
             }
-
-            // Fetch own blogs
-            const blogRes = await axios.get('https://dev-blogs-mu.vercel.app/blog/', { headers }).catch(() => ({ data: { findAllPost: [] } }));
-            // Fetch all categories
-            const catRes = await axios.get('https://dev-blogs-mu.vercel.app/category/', { headers }).catch(() => ({ data: { findOwnPost: [] } }));
+            setPageLoading(true);
+            
+            // Fetch own blogs & categories concurrently
+            const [blogRes, catRes] = await Promise.all([
+                axios.get('https://dev-blogs-mu.vercel.app/blog/', { headers }).catch(() => ({ data: { findAllPost: [] } })),
+                axios.get('https://dev-blogs-mu.vercel.app/category/', { headers }).catch(() => ({ data: { findAllCategory: [] } }))
+            ]);
 
             setBlogs(blogRes.data.findAllPost || blogRes.data.findOwnPost || []);
-            setCategories(catRes.data.findOwnPost || catRes.data.findAllCategory || []);
+            setCategories(catRes.data.findAllCategory || catRes.data.findOwnPost || []);
         } catch (err) {
             toast.error("Session expired or unauthorized");
             localStorage.removeItem('token');
             navigate('/login');
+        } finally {
+            setPageLoading(false);
         }
-    };
+    }, [token, navigate]);
 
     useEffect(() => {
         fetchAllData();
-    }, []);
+    }, [fetchAllData]);
 
     // --- CATEGORY ACTIONS ---
     const handleCategorySubmit = async (e) => {
         e.preventDefault();
+        setCatLoading(true);
         try {
             if (editCatId) {
                 const res = await axios.put(`https://dev-blogs-mu.vercel.app/category/update/${editCatId}`, catForm, { headers });
@@ -65,6 +77,8 @@ export default function Dashboard() {
             fetchAllData();
         } catch (err) {
             toast.error(err.response?.data?.message || "Category operation failed");
+        } finally {
+            setCatLoading(false);
         }
     };
 
@@ -86,6 +100,7 @@ export default function Dashboard() {
     // --- BLOG ACTIONS ---
     const handleBlogSubmit = async (e) => {
         e.preventDefault();
+        setBlogLoading(true);
         try {
             if (editBlogId) {
                 const res = await axios.put(`https://dev-blogs-mu.vercel.app/blog/update/${editBlogId}`, blogForm, { headers });
@@ -95,10 +110,12 @@ export default function Dashboard() {
                 const res = await axios.post('https://dev-blogs-mu.vercel.app/blog/', blogForm, { headers });
                 toast.success(res.data.message || "Blog posted");
             }
-            setBlogForm({ title: '', image: '', categoryId: '', categoryName: '', descripation: '', status: 'post' });
+            setBlogForm({ title: '', image: '', categoryId: '', categoryName: '', description: '', status: 'post' });
             fetchAllData();
         } catch (err) {
             toast.error(err.response?.data?.message || "Blog operation failed");
+        } finally {
+            setBlogLoading(false);
         }
     };
 
@@ -109,7 +126,7 @@ export default function Dashboard() {
             image: blog.image,
             categoryId: blog.categoryId,
             categoryName: blog.categoryName,
-            descripation: blog.descripation,
+            description: blog.description || blog.descripation || '',
             status: blog.status
         });
     };
@@ -126,18 +143,19 @@ export default function Dashboard() {
 
     return (
         <div className="min-h-screen relative bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=1920&auto=format&fit=crop')` }}>
-            {/* Dark Gradient Overlay for Premium Books Look */}
+            {/* Dark Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-gray-950/85 via-gray-900/80 to-blue-950/85 backdrop-blur-[2px]"></div>
 
-            {/* Navbar Component */}
             <Navbar />
 
             <div className="relative z-10 min-h-screen p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
-                
+
                 {/* Top Section: Categories Cards Grid */}
                 <div>
                     <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">📂 Your Categories</h2>
-                    {categories.length === 0 ? (
+                    {pageLoading && categories.length === 0 ? (
+                        <ShimmerDemo />
+                    ) : categories.length === 0 ? (
                         <p className="text-gray-300 text-sm bg-white/5 p-4 rounded-xl border border-white/10">No categories found. Create one below!</p>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
@@ -183,8 +201,11 @@ export default function Dashboard() {
                                     className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-400"
                                 />
                                 <div className="flex gap-2">
-                                    <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-xl text-sm font-semibold transition shadow-md">
-                                        {editCatId ? "Update Category" : "Add Category"}
+                                    <button
+                                        type="submit"
+                                        disabled={catLoading}
+                                        className="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 shadow-md flex items-center justify-center disabled:bg-blue-400 disabled:cursor-not-allowed">
+                                        {catLoading ? <LoadingSpinner /> : (editCatId ? "Update Category" : "Add Category")}
                                     </button>
                                     {editCatId && (
                                         <button type="button" onClick={() => { setEditCatId(null); setCatForm({ title: '', image: '' }); }} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-xl text-sm">Cancel</button>
@@ -227,8 +248,8 @@ export default function Dashboard() {
                                 </select>
                                 <textarea
                                     placeholder="Description"
-                                    value={blogForm.descripation}
-                                    onChange={e => setBlogForm({ ...blogForm, descripation: e.target.value })}
+                                    value={blogForm.description}
+                                    onChange={e => setBlogForm({ ...blogForm, description: e.target.value })}
                                     className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-300 text-sm outline-none focus:ring-2 focus:ring-blue-400"
                                     rows="3"
                                     required
@@ -242,11 +263,14 @@ export default function Dashboard() {
                                     <option value="draft" className="bg-gray-900">Draft</option>
                                 </select>
                                 <div className="flex gap-2">
-                                    <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl text-sm font-semibold transition shadow-md">
-                                        {editBlogId ? "Update Blog" : "Publish Blog"}
+                                    <button
+                                        type="submit"
+                                        disabled={blogLoading}
+                                        className="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 shadow-md flex items-center justify-center disabled:bg-blue-400 disabled:cursor-not-allowed">
+                                        {blogLoading ? <LoadingSpinner /> : (editBlogId ? "Update Blog" : "Publish Blog")}
                                     </button>
                                     {editBlogId && (
-                                        <button type="button" onClick={() => { setEditBlogId(null); setBlogForm({ title: '', image: '', categoryId: '', categoryName: '', descripation: '', status: 'post' }); }} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-xl text-sm">Cancel</button>
+                                        <button type="button" onClick={() => { setEditBlogId(null); setBlogForm({ title: '', image: '', categoryId: '', categoryName: '', description: '', status: 'post' }); }} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-xl text-sm">Cancel</button>
                                     )}
                                 </div>
                             </form>
@@ -257,8 +281,8 @@ export default function Dashboard() {
                     {/* Right Column: Recent Posted Blogs Feed */}
                     <div className="lg:col-span-2 bg-white/10 backdrop-blur-md border border-white/20 p-6 rounded-2xl shadow-xl">
                         <h3 className="text-xl font-bold text-white mb-6">📝 Recent Blog Posts Feed</h3>
-                        {blogs.length === 0 ? (
-                            <p className="text-gray-300 text-sm">No blogs posted yet.</p>
+                        {pageLoading && blogs.length === 0 ? (
+                            <ShimmerDemo />
                         ) : (
                             <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2">
                                 {blogs.map(blog => (
@@ -273,9 +297,8 @@ export default function Dashboard() {
                                                     {blog.status}
                                                 </span>
                                             </div>
-                                            <p className="text-gray-300 text-sm mt-2 line-clamp-2">{blog.descripation}</p>
+                                            <p className="text-gray-300 text-sm mt-2 line-clamp-2">{blog.description || blog.descripation}</p>
 
-                                            {/* Meta Info: Author name, date & category */}
                                             <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-gray-300">
                                                 <span className="bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2.5 py-0.5 rounded-md font-medium">{blog.categoryName || "General"}</span>
                                                 <span>👤 By: <strong className="text-white">{blog.userName || "Author"}</strong></span>
